@@ -474,12 +474,12 @@ purge_command() {
         if [[ "$ans" =~ ^[Yy]$ ]]; then
             case "$mode" in
                 last)
-                    for (( i = total - value; i < total; i++ )); do
+                    for (( i = 0; i < value; i++ )); do
                         borg delete "${BORG_REPO}::${archives[i]}"
                     done
                     ;;
                 first)
-                    for (( i = 0; i < value; i++ )); do
+                    for (( i = 0; i < total - value; i++ )); do
                         borg delete "${BORG_REPO}::${archives[i]}"
                     done
                     ;;
