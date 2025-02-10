@@ -596,7 +596,14 @@ diff_command() {
          exit 1
     fi
 
-    echo "For diff, leave the first prompt empty to use the live state (SOURCE_DIR)."
+    echo "Available archives:"
+    local i=1
+    for a in "${archives[@]}"; do
+        echo "  $i) $a"
+        ((i++))
+    done
+
+    # echo "For diff, leave the first prompt empty to use the live state (SOURCE_DIR)."
 
     # Prompt for the first archive.
     read -rp "Enter the number of the first archive for diff (or press Enter for current state): " choice
@@ -614,12 +621,6 @@ diff_command() {
     fi
 
     # Prompt for the second archive (must choose from available archives).
-    echo "Available archives:"
-    local i=1
-    for a in "${archives[@]}"; do
-        echo "  $i) $a"
-        ((i++))
-    done
     read -rp "Enter the number of the second archive for diff: " choice
     if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#archives[@]}" ]; then
          echo "Invalid selection."
