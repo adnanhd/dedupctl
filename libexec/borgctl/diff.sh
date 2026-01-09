@@ -54,12 +54,13 @@ run() {
         echo "Comparing live state (current contents of SOURCE_DIR) with archive '$diff_archive2'..."
         # Create a temporary directory, extract the chosen snapshot there, then diff
         temp_dir=$(mktemp -d -t borgdiff-XXXXXX)
+        # Ensure cleanup on exit or interrupt
+        trap 'rm -rf "$temp_dir"' EXIT
         echo "Extracting archive '$diff_archive2' to temporary directory $temp_dir..."
         borg extract "${BORG_REPO}::${diff_archive2}" --target "$temp_dir"
         echo "Running diff between current state and extracted snapshot..."
-        diff -r "$(pwd)" "$temp_dir"
-        echo "Diff complete. Removing temporary directory..."
-        rm -rf "$temp_dir"
+        diff -r "$(pwd)" "$temp_dir" || true
+        echo "Diff complete."
     else
         echo "Comparing archive '$diff_archive1' with archive '$diff_archive2'..."
         borg diff "${BORG_REPO}::${diff_archive1}" "${diff_archive2}"

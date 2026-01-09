@@ -37,12 +37,17 @@ perform_backup() {
         echo "Dry run mode enabled. No changes will be made."
     fi
 
+    # Build exclusion parameters using common.sh function
+    build_exclude_params "borg"
+
     echo "Starting Borg backup of '${source_dir}' as archive '${archive_name}'..."
     mkdir -p "${repo_dir}/logs"
     local log_file="${repo_dir}/logs/${timestamp}.log"
 
     ( cd "${source_dir}" &&
-      borg create $dry_flag --verbose --stats --compression lz4 "${repo_dir}::${archive_name}" . ) | tee "$log_file"
+      borg create $dry_flag --verbose --stats --compression lz4 \
+          "${EXCLUDE_PARAMS[@]}" \
+          "${repo_dir}::${archive_name}" . ) 2>&1 | tee "$log_file"
 
     echo "Backup completed and archived as '${archive_name}'."
 

@@ -40,17 +40,11 @@ run() {
         archive="$1"
     else
         echo "Available archives:"
-        local i=1
-        for a in "${archives[@]}"; do
-            echo "  $i) $a"
-            ((i++))
-        done
-        read -rp "Enter the number of the archive to extract: " choice
-        if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#archives[@]}" ]; then
-            echo "Invalid selection."
+        if select_from_list "Enter the number of the archive to extract: " archives "archive"; then
+            archive="$SELECTED_VALUE"
+        else
             exit 1
         fi
-        archive="${archives[$((choice-1))]}"
     fi
 
     echo "Extracting archive '$archive' to '$destination'..."
