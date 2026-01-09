@@ -1,29 +1,25 @@
 # Borg-up & Rsnap
 
-**Borg-up** and **rsnap** are two command‑line tools for managing backups using Borg and rsync, respectively. This package includes the main backup scripts along with shell completions for both Bash and Fish. With these tools you can:
-
-- **Borg-up**  
-  - Initialize a Borg backup repository with encryption (repokey)  
-  - Create new backup archives (with lz4 compression)  
-  - Purge old archives (with interactive or option‑based purging, including diff and size features)  
-  - Mount, extract, check repository integrity, view logs, and list archives  
-  - Compare (diff) archives (including an option to compare the live state against a snapshot)
-
-- **Rsnap**  
-  - Initialize a backup repository (creates a `.myrsyncbackup` file)  
-  - Take new incremental snapshot backups using rsync  
-  - Purge, restore, view logs, list snapshots, compare snapshots (diff), and check snapshot size (using `du -sh`)
+**Borg-up** and **rsnap** are two command-line tools for managing backups using Borg and rsync, respectively. This package includes the main backup scripts along with shell completions for both Bash and Fish.
 
 ## Features
 
-- **Interactive and Option-Based Commands:**  
-  For commands like purge and diff, you can choose between interactive mode (prompting you to select items) or pass command‑line options (e.g. `--last 3`, `--older 30`, etc.).
+### Borg-up (BorgBackup)
+- Initialize a Borg backup repository with encryption (repokey)
+- Create new backup archives (with lz4 compression and exclude support)
+- Prune old archives (interactive or option-based: `--last`, `--first`, `--older`, `--newer`, `--all`)
+- Mount, extract, and check repository integrity
+- Compare (diff) archives (including live state vs snapshot)
+- View logs and list archives
 
-- **Shell Completions:**  
-  Bash and Fish completions are provided so that you get auto‑completion and (in Fish) detailed descriptions.
-
-- **Portable Installation:**  
-  All scripts and completion files are packaged in this repository, and an installer (via Makefile) is provided to copy files into the proper locations (e.g. `~/.local/bin/`, `~/.local/share/bash-completion/completions/`, and `~/.config/fish/completions/`).
+### Rsnap (rsync)
+- Initialize a backup repository (creates a `.myrsyncbackup` file)
+- Take incremental snapshot backups using rsync with hard-linking
+- Prune snapshots (interactive or option-based)
+- Restore snapshots with optional `--delete` and `--exclude` flags
+- Compare snapshots (diff) including live state comparison
+- Check snapshot integrity (broken symlinks, readability)
+- View logs and list snapshots
 
 ## Repository Structure
 
@@ -32,80 +28,199 @@ borg-rsnap/
 ├── README.md
 ├── LICENSE
 ├── Makefile
-├── borg-up             # Borg backup script (executable)
-├── rsnap               # Rsync backup script (executable)
-├── completions/
-│   ├── bash/
-│   │   ├── borg-up.bash
-│   │   └── rsnap.bash
-│   └── fish/
-│       ├── borg-up.fish
-│       └── rsnap.fish
-└── docs/               # (Optional) Documentation and examples
+├── borg-up                    # Main Borg backup script
+├── rsnap                      # Main rsync backup script
+├── lib/
+│   ├── common.sh              # Shared utilities
+│   └── prune.sh               # Shared prune logic
+├── libexec/
+│   ├── borg-up/               # Borg command modules
+│   │   ├── init.sh
+│   │   ├── backup.sh
+│   │   ├── prune.sh
+│   │   ├── mount.sh
+│   │   ├── extract.sh
+│   │   ├── check.sh
+│   │   ├── diff.sh
+│   │   ├── size.sh
+│   │   ├── log.sh
+│   │   └── list.sh
+│   └── rsnap/                 # rsync command modules
+│       ├── init.sh
+│       ├── snapshot.sh
+│       ├── prune.sh
+│       ├── restore.sh
+│       ├── check.sh
+│       ├── diff.sh
+│       ├── size.sh
+│       ├── log.sh
+│       └── list.sh
+└── completions/
+    ├── bash/
+    │   ├── borg-up.bash
+    │   └── rsnap.bash
+    └── fish/
+        ├── borg-up.fish
+        └── rsnap.fish
 ```
 
 ## Installation
 
-You can install the tools and completions by running the provided Makefile. For example:
+### Quick Install
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/borg-rsnap.git
 cd borg-rsnap
 
-# Run the install target (adjust PREFIX if needed)
+# Install to ~/.local (default)
 make install
 ```
 
-This will install:
+### Custom Install Location
 
-- The **borg-up** and **rsnap** scripts into `~/.local/bin/` (or your chosen PREFIX/bin)
-- Bash completions into `~/.local/share/bash-completion/completions/`
-- Fish completions into `~/.config/fish/completions/`
+```bash
+# Install to a custom prefix
+make PREFIX=/usr/local install
 
-To uninstall, run:
+# Or install to a specific directory
+make PREFIX=$HOME/tools install
+```
+
+### What Gets Installed
+
+| Component | Default Location |
+|-----------|------------------|
+| Scripts (`borg-up`, `rsnap`) | `~/.local/bin/` |
+| Libraries (`lib/*.sh`) | `~/.local/lib/borg-rsnap/` |
+| Command modules (`libexec/`) | `~/.local/libexec/borg-rsnap/` |
+| Bash completions | `~/.local/share/bash-completion/completions/` |
+| Fish completions | `~/.config/fish/completions/` |
+
+### Uninstall
 
 ```bash
 make uninstall
 ```
 
-## Usage
+### PATH Setup
 
-After installation, make sure that the installation directories are in your PATH and that your shell loads the completion files. Then you can run the tools:
+Make sure `~/.local/bin` is in your PATH. Add this to your `~/.bashrc` or `~/.zshrc`:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+For Fish, add to `~/.config/fish/config.fish`:
+
+```fish
+set -gx PATH $HOME/.local/bin $PATH
+```
+
+## Usage
 
 ### Borg-up
 
 ```bash
+# Initialize a backup repository
 borg-up init /path/to/your/project
+
+# Create a backup
 borg-up backup [--dry-run] [--force-full]
-borg-up prune --last 3      # (or --first, --older, --newer, --all)
+
+# Prune old archives
+borg-up prune                 # Interactive mode
+borg-up prune --last 3        # Remove newest 3
+borg-up prune --first 3       # Remove oldest 3
+borg-up prune --older 30      # Remove older than 30 days
+borg-up prune --newer 7       # Remove newer than 7 days
+borg-up prune --all           # Remove all
+
+# Mount an archive
 borg-up mount [<mount_point>] [<archive>]
+
+# Extract an archive
 borg-up extract [<destination>] [<archive>]
-borg-up diff                # Press Enter on first prompt to use current state
-borg-up size
-borg-up check
-borg-up log
-borg-up list
+
+# Compare archives
+borg-up diff                  # Press Enter for current state vs archive
+
+# Other commands
+borg-up check                 # Verify repository integrity
+borg-up size                  # Show archive size info
+borg-up log                   # View backup logs
+borg-up list                  # List all archives
 ```
 
 ### Rsnap
 
 ```bash
+# Initialize a backup repository
 rsnap init /path/to/your/project
+
+# Create a snapshot
 rsnap snapshot [--dry-run] [--force-full]
-rsnap prune --older 30      # (or --last, --first, --newer, --all; interactive mode if no option)
-rsnap restore [<snapshot>]
-rsnap log
-rsnap list
-rsnap diff                # First prompt: press Enter for live state; second: choose a snapshot
-rsnap size
+
+# Prune old snapshots
+rsnap prune                   # Interactive mode
+rsnap prune --last 3          # Remove newest 3
+rsnap prune --first 3         # Remove oldest 3
+rsnap prune --older 30        # Remove older than 30 days
+rsnap prune --all             # Remove all
+
+# Restore a snapshot
+rsnap restore                           # Interactive selection
+rsnap restore 2024-01-15_10:30:00       # Specific snapshot
+rsnap restore --delete                  # Delete files not in snapshot (dangerous!)
+rsnap restore --exclude=.git            # Exclude patterns
+
+# Compare snapshots
+rsnap diff                    # Press Enter for current state vs snapshot
+
+# Other commands
+rsnap check                   # Verify snapshot integrity
+rsnap size                    # Show snapshot size
+rsnap log                     # View backup logs
+rsnap list                    # List all snapshots
 ```
 
-## Packaging Other Tools
+## Configuration
 
-Yes—you can use similar techniques to package and distribute other user‑level tools and services (such as syncing utilities or custom user services). Many users organize their personal scripts, dotfiles, and systemd user services (or similar) in a Git repository and use tools like **GNU Stow**, **Makefiles**, or dedicated installer scripts to install files in the correct locations. You can also create Debian or RPM packages if you wish to integrate your tools with your system’s package manager.
+### Borg-up
 
-By wrapping your scripts, completion files, and configuration files in one repository and providing an installer, you create a portable “module” that can be installed on any machine.
+Configuration is stored in `.borgbackup` in your project root:
+
+```bash
+SOURCE_DIR="./"
+BORG_REPO="/path/to/borg/repository"
+# Optional: EXCLUDES=(".cache" "node_modules" "*.log")
+```
+
+### Rsnap
+
+Configuration is stored in `.myrsyncbackup` in your project root:
+
+```bash
+SOURCE_DIR="./"
+BACKUP_DIR="/path/to/rsync/backups"
+# Optional: EXCLUDES=(".cache" "node_modules" "*.log")
+```
+
+### Default Excludes
+
+Both tools exclude by default:
+- `.cache`
+- `tmp`
+- `__pycache__`
+
+Override by defining `EXCLUDES` array in your config file.
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BORG_BACKUP_ROOT` | `~/.borg_backups` | Root directory for Borg repositories |
+| `RSYNC_BACKUP_ROOT` | `~/.rsync_backups` | Root directory for rsync snapshots |
 
 ## Contributing
 
