@@ -2,65 +2,31 @@
 #
 # borg-up – A Borg backup management script with encryption, compression, and additional commands.
 #
-# This script supports the following subcommands:
-#
-#   init [<path>] [--dry-run] [--force-full]
-#       Initialize a Borg backup repository for <path> (or the current directory if not provided).
-#       This creates a .borgbackup configuration file and initializes the repository with encryption (repokey).
-#       (No backup archive is created during init.)
-#
-#   backup [--dry-run] [--force-full]
-#       Create a new backup archive for the repository defined in the current directory (or its nearest parent).
-#       Archives are created using compression (lz4) and stored in the repository.
-#       **Note:** The backup is taken relative to SOURCE_DIR.
-#
-#   prune [options]
-#       Purge backup archives from the repository.
-#       Options (mutually exclusive):
-#         --last X   : Remove the newest X archives.
-#         --first X  : Remove the oldest X archives.
-#         --older X  : Remove archives older than X days.
-#         --newer X  : Remove archives newer than X days.
-#         --all      : Remove all archives.
-#       If no option is given, interactive mode is used.
-#
-#   mount [<mount_point>] [<archive>]
-#       Mount a backup archive from the repository.
-#       First, the mount point is determined (either provided or interactively requested).
-#       Then, if no archive is specified, an interactive menu will let you choose one.
-#
-#   extract [<destination>] [<archive>]
-#       Extract a backup archive from the repository to a destination directory.
-#       The destination is the first parameter (or prompted if not provided),
-#       and the archive is the second parameter (or chosen interactively if not provided).
-#
-#   check
-#       Perform an integrity check of the repository using 'borg check'.
-#
-#   log [<log-index-or-substring>]
-#       Display a backup log file.
-#       If an argument is provided, it selects the log file; otherwise, an interactive menu is shown.
-#
-#   list
-#       List all available backup archives in the repository.
-#
-#   diff
-#       Compare two archives.
-#       For the first prompt, if you press Enter without typing a number, the live state (current directory) is used.
-#       The second archive must be chosen from the available archives.
-#
-#   size
-#       Display the size and info of an archive (using 'borg info').
-#
-# Common options:
-#   --dry-run      Simulate actions without making any changes.
-#   --force-full   Force a full backup (skip incremental linking).
-#   -h, --help     Show this help message and exit.
+# Commands: init, backup, prune, mount, extract, check, log, list, diff, size
+# Run 'borg-up --help' for more information.
 #
 
 set -o errexit
 set -o nounset
 set -o pipefail
+
+# Determine script location for finding libraries
+SCRIPT_PATH="$(realpath "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+
+# Support both development (in-tree) and installed locations
+if [ -d "$SCRIPT_DIR/lib" ]; then
+    LIB_DIR="$SCRIPT_DIR/lib"
+    LIBEXEC_DIR="$SCRIPT_DIR/libexec/borg-up"
+else
+    # Installed location: assume PREFIX/bin/borg-up -> PREFIX/lib, PREFIX/libexec
+    PREFIX_DIR="$(dirname "$SCRIPT_DIR")"
+    LIB_DIR="$PREFIX_DIR/lib/borg-rsnap"
+    LIBEXEC_DIR="$PREFIX_DIR/libexec/borg-rsnap/borg-up"
+fi
+
+# Source common utilities
+source "$LIB_DIR/common.sh"
 
 # Use BORG_BACKUP_ROOT if defined; otherwise default to "$HOME/.borg_backups"
 if [ -z "${BORG_BACKUP_ROOT:-}" ]; then
@@ -77,12 +43,10 @@ Commands:
   init [<path>]
       Initialize a Borg backup repository for <path> (or the current directory if not provided).
       This creates a .borgbackup configuration file and initializes the repository with encryption (repokey).
-      (No backup archive is created during init.)
 
   backup [--dry-run] [--force-full]
       Create a new backup archive for the repository defined in the current directory (or its nearest parent).
       Archives are created using compression (lz4) and stored in the repository.
-      **Note:** The backup is taken relative to SOURCE_DIR.
 
   prune [options]
       Purge backup archives.
@@ -96,20 +60,15 @@ Commands:
 
   mount [<mount_point>] [<archive>]
       Mount a backup archive from the repository.
-      First, the mount point is determined (either provided or interactively requested).
-      Then, if no archive is specified, an interactive menu will let you choose one.
 
   extract [<destination>] [<archive>]
       Extract a backup archive from the repository to a destination directory.
-      The destination is the first parameter (or prompted if not provided),
-      and the archive is the second parameter (or chosen interactively if not provided).
 
   check
       Perform an integrity check of the repository using 'borg check'.
 
   log [<log-index-or-substring>]
       Display a backup log file.
-      If an argument is provided, it selects the log file; otherwise, an interactive menu is shown.
 
   list
       List all available backup archives in the repository.
@@ -117,7 +76,6 @@ Commands:
   diff
       Compare two archives.
       For the first prompt, if you press Enter without entering a number, the live state (current directory) is used.
-      The second archive must be selected from the available archives.
 
   size
       Display the size and info of an archive (using 'borg info').
@@ -130,568 +88,7 @@ EOF
     exit 1
 }
 
-# --- Utility Functions ---
-
-# find_repo_root: Search upward from a given directory for a .borgbackup file.
-find_repo_root() {
-    local dir
-    dir=$(realpath "$1")
-    while [ "$dir" != "/" ]; do
-        if [ -f "$dir/.borgbackup" ]; then
-            echo "$dir"
-            return 0
-        fi
-        dir=$(dirname "$dir")
-    done
-    return 1
-}
-
-# find_parent_repo: Starting from a given directory, search upward for a parent repository (i.e. a .borgbackup file).
-find_parent_repo() {
-    local current_repo parent_dir
-    current_repo=$(realpath "$1")
-    parent_dir=$(dirname "$current_repo")
-    while [ "$parent_dir" != "/" ]; do
-        if [ -f "$parent_dir/.borgbackup" ]; then
-            echo "$parent_dir"
-            return 0
-        fi
-        parent_dir=$(dirname "$parent_dir")
-    done
-    return 1
-}
-
-# --- Core Borg Backup Functions ---
-
-perform_backup() {
-    local source_dir="$1"
-    shift
-    local repo_dir="$1"   # Borg repository (under BORG_BACKUP_ROOT)
-    shift
-
-    local DRY_RUN=false
-    local FORCE_FULL=false
-
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --dry-run)
-                DRY_RUN=true
-                shift
-                ;;
-            --force-full|--create)
-                FORCE_FULL=true
-                shift
-                ;;
-            *)
-                echo "Unknown option: $1"
-                shift
-                ;;
-        esac
-    done
-
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d_%H:%M:%S')
-    local archive_name="${timestamp}"
-
-    local dry_flag=""
-    if [ "$DRY_RUN" = true ]; then
-        dry_flag="--dry-run"
-        echo "Dry run mode enabled. No changes will be made."
-    fi
-
-    echo "Starting Borg backup of '${source_dir}' as archive '${archive_name}'..."
-    mkdir -p "${repo_dir}/logs"
-    local log_file="${repo_dir}/logs/${timestamp}.log"
-
-    ( cd "${source_dir}" &&
-      borg create $dry_flag --verbose --stats --compression lz4 "${repo_dir}::${archive_name}" . ) | tee "$log_file"
-
-    echo "Backup completed and archived as '${archive_name}'."
-
-    local parent_repo
-    parent_repo=$(find_parent_repo "${source_dir}") || true
-    if [ -n "${parent_repo:-}" ]; then
-        echo "Found parent Borg backup repository at '${parent_repo}'."
-        echo "Initiating backup for the parent repository..."
-        ( cd "${parent_repo}" && exec "$0" backup "$@" )
-    fi
-}
-
-backup_command() {
-    local repo_root
-    repo_root=$(find_repo_root "$(pwd)") || {
-        echo "No Borg backup repository found in the current directory or its parents (missing .borgbackup)."
-        exit 1
-    }
-    cd "$repo_root" || exit 1
-    if [ -f ".borgbackup" ]; then
-        source ".borgbackup"
-    else
-        echo "Error: .borgbackup not found in ${repo_root}."
-        exit 1
-    fi
-    if [ -z "${SOURCE_DIR:-}" ] || [ -z "${BORG_REPO:-}" ]; then
-        echo "Invalid .borgbackup file. It must define SOURCE_DIR and BORG_REPO."
-        exit 1
-    fi
-    perform_backup "$SOURCE_DIR" "$BORG_REPO" "$@"
-}
-
-init_command() {
-    local src
-    if [ $# -gt 0 ] && [ -d "$1" ]; then
-        src=$(realpath "$1")
-    else
-        src=$(pwd)
-    fi
-
-    if [ -f "$src/.borgbackup" ]; then
-        echo "Borg repository already initialized in '$src'. Skipping initialization."
-        exit 0
-    fi
-
-    local safe_name
-    safe_name=$(echo "$src" | sed 's/!/!!/g' | sed 's/\//!/g')
-    local repo_dir="${BORG_BACKUP_ROOT}/${safe_name}"
-
-    if [ -d "$repo_dir" ]; then
-        echo "Borg repository already exists at '${repo_dir}'."
-    else
-        mkdir -p "${repo_dir}"
-        echo "Initializing Borg repository at ${repo_dir} with encryption (repokey)..."
-        borg init --encryption=repokey "${repo_dir}"
-    fi
-
-    mkdir -p "${repo_dir}/logs"
-
-    cat > "${src}/.borgbackup" <<EOF
-# Borg backup configuration for ${src}
-SOURCE_DIR="./"
-BORG_REPO="${repo_dir}"
-EOF
-
-    echo "Initialized Borg backup repository for '${src}'."
-    echo "Repository is located at '${repo_dir}'."
-}
-
-## Updated Purge Command for Borg
-# Options supported (mutually exclusive):
-#   --last X   : Remove the newest X archives.
-#   --first X  : Remove the oldest X archives.
-#   --older X  : Remove archives older than X days.
-#   --newer X  : Remove archives newer than X days.
-#   --all      : Remove all archives.
-# If no option is given, interactive mode is used.
-purge_command() {
-    local mode="" value=""
-    if [ $# -gt 0 ]; then
-        while [ $# -gt 0 ]; do
-            case "$1" in
-                --last)
-                    if [ -n "$mode" ]; then
-                        echo "Error: Options --last, --first, --older, --newer, and --all are mutually exclusive."
-                        exit 1
-                    fi
-                    mode="last"
-                    shift
-                    if [ $# -gt 0 ] && [[ "$1" =~ ^[0-9]+$ ]]; then
-                        value="$1"
-                        shift
-                    else
-                        echo "Error: You must provide a numeric value for --last."
-                        exit 1
-                    fi
-                    ;;
-                --first)
-                    if [ -n "$mode" ]; then
-                        echo "Error: Options --last, --first, --older, --newer, and --all are mutually exclusive."
-                        exit 1
-                    fi
-                    mode="first"
-                    shift
-                    if [ $# -gt 0 ] && [[ "$1" =~ ^[0-9]+$ ]]; then
-                        value="$1"
-                        shift
-                    else
-                        echo "Error: You must provide a numeric value for --first."
-                        exit 1
-                    fi
-                    ;;
-                --older)
-                    if [ -n "$mode" ]; then
-                        echo "Error: Options --last, --first, --older, --newer, and --all are mutually exclusive."
-                        exit 1
-                    fi
-                    mode="older"
-                    shift
-                    if [ $# -gt 0 ] && [[ "$1" =~ ^[0-9]+$ ]]; then
-                        value="$1"
-                        shift
-                    else
-                        echo "Error: You must provide a numeric value (in days) for --older."
-                        exit 1
-                    fi
-                    ;;
-                --newer)
-                    if [ -n "$mode" ]; then
-                        echo "Error: Options --last, --first, --older, --newer, and --all are mutually exclusive."
-                        exit 1
-                    fi
-                    mode="newer"
-                    shift
-                    if [ $# -gt 0 ] && [[ "$1" =~ ^[0-9]+$ ]]; then
-                        value="$1"
-                        shift
-                    else
-                        echo "Error: You must provide a numeric value (in days) for --newer."
-                        exit 1
-                    fi
-                    ;;
-                --all)
-                    if [ -n "$mode" ]; then
-                        echo "Error: Options --last, --first, --older, --newer, and --all are mutually exclusive."
-                        exit 1
-                    fi
-                    mode="all"
-                    shift
-                    ;;
-                *)
-                    echo "Unknown option: $1"
-                    usage
-                    ;;
-            esac
-        done
-    fi
-
-    if [ -z "$mode" ]; then
-        mode="interactive"
-    fi
-
-    local repo_root
-    repo_root=$(find_repo_root "$(pwd)") || {
-        echo "No Borg backup repository found (missing .borgbackup)."
-        exit 1
-    }
-    cd "$repo_root" || exit 1
-    if [ -f ".borgbackup" ]; then
-        source ".borgbackup"
-    else
-        echo "Error: .borgbackup not found in ${repo_root}."
-        exit 1
-    fi
-    if [ -z "${BORG_REPO:-}" ]; then
-        echo "Invalid .borgbackup file. It must define BORG_REPO."
-        exit 1
-    fi
-
-    # List archives using borg list.
-    local archives
-    mapfile -t archives < <(borg list "${BORG_REPO}" --short | sort)
-    local total="${#archives[@]}"
-    echo "Total archives found: $total"
-
-    if [ "$mode" != "interactive" ]; then
-        case "$mode" in
-            last)
-                if [ "$total" -lt "$value" ]; then
-                    echo "Error: Total archives ($total) is less than the number to remove ($value)."
-                    exit 1
-                fi
-                echo "Purge option --last: The following newest $value archives will be removed:"
-                # Newest archives are at the end.
-                for (( i = total - value; i < total; i++ )); do
-                    echo "- ${BORG_REPO}::${archives[i]}"
-                done
-                ;;
-            first)
-                if [ "$total" -lt "$value" ]; then
-                    echo "Error: Total archives ($total) is less than the number to remove ($value)."
-                    exit 1
-                fi
-                echo "Purge option --first: The following oldest $value archives will be removed:"
-                for (( i = 0; i < value; i++ )); do
-                    echo "- ${BORG_REPO}::${archives[i]}"
-                done
-                ;;
-            older)
-                local current_epoch
-                current_epoch=$(date +%s)
-                local cutoff=$(( current_epoch - value * 86400 ))
-                local found=0
-                echo "Purge option --older: The following archives older than $value days (cutoff: $(date -d @$cutoff)) will be removed:"
-                for archive in "${archives[@]}"; do
-                    local archive_time
-                    archive_time=$(echo "$archive" | tr '_' ' ')
-                    local archive_epoch
-                    archive_epoch=$(date -d "$archive_time" +%s 2>/dev/null || echo 0)
-                    if [ "$archive_epoch" -lt "$cutoff" ]; then
-                        echo "- ${BORG_REPO}::${archive} (date: $archive_time)"
-                        found=$(( found + 1 ))
-                    fi
-                done
-                if [ "$found" -eq 0 ]; then
-                    echo "No archives older than $value days found."
-                    exit 0
-                fi
-                ;;
-            newer)
-                local current_epoch
-                current_epoch=$(date +%s)
-                local cutoff=$(( current_epoch - value * 86400 ))
-                local found=0
-                echo "Purge option --newer: The following archives newer than $value days (cutoff: $(date -d @$cutoff)) will be removed:"
-                for archive in "${archives[@]}"; do
-                    local archive_time
-                    archive_time=$(echo "$archive" | tr '_' ' ')
-                    local archive_epoch
-                    archive_epoch=$(date -d "$archive_time" +%s 2>/dev/null || echo 0)
-                    if [ "$archive_epoch" -gt "$cutoff" ]; then
-                        echo "- ${BORG_REPO}::${archive} (date: $archive_time)"
-                        found=$(( found + 1 ))
-                    fi
-                done
-                if [ "$found" -eq 0 ]; then
-                    echo "No archives newer than $value days found."
-                    exit 0
-                fi
-                ;;
-            all)
-                if [ "$total" -eq 0 ]; then
-                    echo "No archives to purge."
-                    exit 0
-                fi
-                echo "Purge option --all: All archives will be removed:"
-                for archive in "${archives[@]}"; do
-                    echo "- ${BORG_REPO}::${archive}"
-                done
-                ;;
-            *)
-                echo "Unknown purge mode: $mode"
-                usage
-                ;;
-        esac
-        read -rp "Do you want to permanently delete these archives [yN]? " ans
-        if [[ "$ans" =~ ^[Yy]$ ]]; then
-            case "$mode" in
-                last)
-                    for (( i = 0; i < value; i++ )); do
-                        borg delete "${BORG_REPO}::${archives[i]}"
-                    done
-                    ;;
-                first)
-                    for (( i = 0; i < total - value; i++ )); do
-                        borg delete "${BORG_REPO}::${archives[i]}"
-                    done
-                    ;;
-                older)
-                    for archive in "${archives[@]}"; do
-                        local archive_time
-                        archive_time=$(echo "$archive" | tr '_' ' ')
-                        local archive_epoch
-                        archive_epoch=$(date -d "$archive_time" +%s 2>/dev/null || echo 0)
-                        if [ "$archive_epoch" -lt "$cutoff" ]; then
-                            borg delete "${BORG_REPO}::${archive}"
-                        fi
-                    done
-                    ;;
-                newer)
-                    for archive in "${archives[@]}"; do
-                        local archive_time
-                        archive_time=$(echo "$archive" | tr '_' ' ')
-                        local archive_epoch
-                        archive_epoch=$(date -d "$archive_time" +%s 2>/dev/null || echo 0)
-                        if [ "$archive_epoch" -gt "$cutoff" ]; then
-                            borg delete "${BORG_REPO}::${archive}"
-                        fi
-                    done
-                    ;;
-                all)
-                    for archive in "${archives[@]}"; do
-                        borg delete "${BORG_REPO}::${archive}"
-                    done
-                    ;;
-            esac
-            echo "Archives removed."
-        else
-            echo "Aborted."
-        fi
-    else
-        # Interactive mode.
-        echo "Interactive mode: Enter the archive numbers to purge (separated by spaces), or type 'all' to purge all archives:"
-        echo "Available archives:"
-        local i=1
-        for archive in "${archives[@]}"; do
-            echo "  $i) $archive"
-            ((i++))
-        done
-        read -rp "Your selection: " selection
-        if [ "$selection" = "all" ]; then
-            echo "About to purge ALL archives."
-            read -rp "Do you want to permanently delete these archives [yN]? " ans
-            if [[ "$ans" =~ ^[Yy]$ ]]; then
-                for archive in "${archives[@]}"; do
-                    borg delete "${BORG_REPO}::${archive}"
-                done
-                echo "All archives removed."
-            else
-                echo "Aborted."
-            fi
-        else
-            local indices
-            indices=($selection)
-            echo "The following archives will be removed:"
-            for index in "${indices[@]}"; do
-                if ! [[ "$index" =~ ^[0-9]+$ ]]; then
-                    echo "Invalid input: '$index' is not a number."
-                    exit 1
-                fi
-                if [ "$index" -lt 1 ] || [ "$index" -gt "$total" ]; then
-                    echo "Invalid selection: $index is out of range (1-$total)."
-                    exit 1
-                fi
-                echo "- ${BORG_REPO}::${archives[$(( index - 1 ))]}"
-            done
-            read -rp "Do you want to permanently delete these archives [yN]? " ans
-            if [[ "$ans" =~ ^[Yy]$ ]]; then
-                for index in "${indices[@]}"; do
-                    borg delete "${BORG_REPO}::${archives[$(( index - 1 ))]}"
-                done
-                echo "Archives removed."
-            else
-                echo "Aborted."
-            fi
-        fi
-    fi
-}
-
-## Updated Diff Command for Borg
-# Compares two archives. For the first prompt, if the user presses Enter (i.e. leaves it empty),
-# it is taken as "current" (the live state, i.e. the current contents of SOURCE_DIR).
-# The second prompt must choose a snapshot from the available archives.
-diff_command() {
-    local repo_root diff_archive1 diff_archive2 temp_dir
-
-    repo_root=$(find_repo_root "$(pwd)") || {
-        echo "No Borg backup repository found (missing .borgbackup)."
-        exit 1
-    }
-    cd "$repo_root" || exit 1
-
-    if [ -f ".borgbackup" ]; then
-        source ".borgbackup"
-    else
-        echo "Error: .borgbackup not found in $repo_root."
-        exit 1
-    fi
-    if [ -z "${BORG_REPO:-}" ]; then
-        echo "Invalid .borgbackup file (BORG_REPO not defined)."
-        exit 1
-    fi
-
-    # Get list of archives.
-    local archives
-    mapfile -t archives < <(borg list "${BORG_REPO}" --short | sort)
-    if [ ${#archives[@]} -eq 0 ]; then
-         echo "No archives found in ${BORG_REPO}."
-         exit 1
-    fi
-
-    echo "Available archives:"
-    local i=1
-    for a in "${archives[@]}"; do
-        echo "  $i) $a"
-        ((i++))
-    done
-
-    # echo "For diff, leave the first prompt empty to use the live state (SOURCE_DIR)."
-
-    # Prompt for the first archive.
-    read -rp "Enter the number of the first archive for diff (or press Enter for current state): " choice
-    if [ -z "$choice" ]; then
-        diff_archive1="current"
-    elif [[ "$choice" =~ ^[0-9]+$ ]]; then
-        if [ "$choice" -lt 1 ] || [ "$choice" -gt "${#archives[@]}" ]; then
-            echo "Invalid selection."
-            exit 1
-        fi
-        diff_archive1="${archives[$((choice-1))]}"
-    else
-        echo "Invalid input."
-        exit 1
-    fi
-
-    # Prompt for the second archive (must choose from available archives).
-    read -rp "Enter the number of the second archive for diff: " choice
-    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#archives[@]}" ]; then
-         echo "Invalid selection."
-         exit 1
-    fi
-    diff_archive2="${archives[$((choice-1))]}"
-
-    if [ "$diff_archive1" = "current" ]; then
-        echo "Comparing live state (current contents of SOURCE_DIR) with archive '$diff_archive2'..."
-        # Create a temporary directory, extract the chosen snapshot there, then diff.
-        temp_dir=$(mktemp -d -t borgdiff-XXXXXX)
-        echo "Extracting archive '$diff_archive2' to temporary directory $temp_dir..."
-        borg extract "${BORG_REPO}::${diff_archive2}" --target "$temp_dir"
-        echo "Running diff between current state and extracted snapshot..."
-        diff -r "$(pwd)" "$temp_dir"
-        echo "Diff complete. Removing temporary directory..."
-        rm -rf "$temp_dir"
-    else
-        echo "Comparing archive '$diff_archive1' with archive '$diff_archive2'..."
-        borg diff "${BORG_REPO}::${diff_archive1}" "${BORG_REPO}::${diff_archive2}"
-    fi
-}
-
-## Updated Size Command for Borg
-# Displays size and other info for a selected archive.
-size_command() {
-    local repo_root archive
-
-    repo_root=$(find_repo_root "$(pwd)") || {
-         echo "No Borg backup repository found (missing .borgbackup)."
-         exit 1
-    }
-    cd "$repo_root" || exit 1
-
-    if [ -f ".borgbackup" ]; then
-         source ".borgbackup"
-    else
-         echo "Error: .borgbackup not found in $repo_root."
-         exit 1
-    fi
-    if [ -z "${BORG_REPO:-}" ]; then
-         echo "Invalid .borgbackup file (BORG_REPO not defined)."
-         exit 1
-    fi
-
-    local archives
-    mapfile -t archives < <(borg list "${BORG_REPO}" --short | sort)
-    if [ ${#archives[@]} -eq 0 ]; then
-         echo "No archives found in ${BORG_REPO}."
-         exit 1
-    fi
-
-    echo "Available archives:"
-    local i=1
-    for a in "${archives[@]}"; do
-         echo "  $i) $a"
-         ((i++))
-    done
-    read -rp "Enter the number of the archive to check size: " choice
-    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#archives[@]}" ]; then
-         echo "Invalid selection."
-         exit 1
-    fi
-    archive="${archives[$((choice-1))]}"
-
-    echo "Size and info for archive '$archive':"
-    borg info "${BORG_REPO}::${archive}"
-}
-
-# --- Main Command Dispatcher ---
-
+# Main command dispatcher
 if [ $# -lt 1 ]; then
     usage
 fi
@@ -700,35 +97,13 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    init)
-        init_command "$@"
-        ;;
-    backup)
-        backup_command "$@"
-        ;;
-    prune)
-        purge_command "$@"
-        ;;
-    mount)
-        mount_command "$@"
-        ;;
-    extract)
-        extract_command "$@"
-        ;;
-    check)
-        check_command "$@"
-        ;;
-    diff)
-        diff_command "$@"
-        ;;
-    size)
-        size_command "$@"
-        ;;
-    log)
-        log_command "$@"
-        ;;
-    list)
-        list_command "$@"
+    init|backup|prune|mount|extract|check|log|list|diff|size)
+        if [ ! -f "$LIBEXEC_DIR/${COMMAND}.sh" ]; then
+            echo "Error: Command module for '$COMMAND' not found."
+            exit 1
+        fi
+        source "$LIBEXEC_DIR/${COMMAND}.sh"
+        run "$@"
         ;;
     -h|--help)
         usage
