@@ -55,7 +55,8 @@ run() {
         # Create a temporary directory, extract the chosen snapshot there, then diff
         temp_dir=$(mktemp -d -t borgdiff-XXXXXX)
         # Ensure cleanup on exit or interrupt
-        trap 'rm -rf "$temp_dir"' EXIT
+        register_cleanup "$temp_dir"
+        setup_cleanup_trap
         echo "Extracting archive '$diff_archive2' to temporary directory $temp_dir..."
         local source_dir
         source_dir="$(pwd)"
