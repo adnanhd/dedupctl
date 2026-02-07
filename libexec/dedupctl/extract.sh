@@ -48,6 +48,6 @@ run() {
     fi
 
     echo "Extracting archive '$archive' to '$destination'..."
-    borg extract "${BORG_REPO}::${archive}" --target "$destination"
+    (cd "$destination" && borg extract "${BORG_REPO}::${archive}")
     echo "Extraction completed."
 }

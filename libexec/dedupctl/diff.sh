@@ -57,9 +57,11 @@ run() {
         # Ensure cleanup on exit or interrupt
         trap 'rm -rf "$temp_dir"' EXIT
         echo "Extracting archive '$diff_archive2' to temporary directory $temp_dir..."
-        borg extract "${BORG_REPO}::${diff_archive2}" --target "$temp_dir"
+        local source_dir
+        source_dir="$(pwd)"
+        (cd "$temp_dir" && borg extract "${BORG_REPO}::${diff_archive2}")
         echo "Running diff between current state and extracted snapshot..."
-        diff -r "$(pwd)" "$temp_dir" || true
+        diff -r "$source_dir" "$temp_dir" || true
         echo "Diff complete."
     else
         echo "Comparing archive '$diff_archive1' with archive '$diff_archive2'..."
