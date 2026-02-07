@@ -1,4 +1,4 @@
-# borgctl diff command
+# dedupctl diff command
 # Compare two archives
 
 run() {

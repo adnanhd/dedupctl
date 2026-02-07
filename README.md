@@ -1,4 +1,4 @@
-# borgctl
+# dedupctl
 
 A command-line tool for managing [BorgBackup](https://www.borgbackup.org/) repositories with encryption, compression, and incremental archives.
 
@@ -14,12 +14,12 @@ A command-line tool for managing [BorgBackup](https://www.borgbackup.org/) repos
 ## Repository Structure
 
 ```
-borgctl/
-├── borgctl                    # Main script
+dedupctl/
+├── dedupctl                    # Main script
 ├── lib/                       # Shared libraries (git submodule)
 │   ├── common.sh
 │   └── prune.sh
-├── libexec/borgctl/           # Command modules
+├── libexec/dedupctl/           # Command modules
 │   ├── init.sh
 │   ├── backup.sh
 │   ├── prune.sh
@@ -31,8 +31,8 @@ borgctl/
 │   ├── log.sh
 │   └── list.sh
 ├── completions/
-│   ├── bash/borgctl.bash
-│   └── fish/borgctl.fish
+│   ├── bash/dedupctl.bash
+│   └── fish/dedupctl.fish
 ├── Makefile
 └── README.md
 ```
@@ -41,7 +41,7 @@ borgctl/
 
 ```bash
 git clone --recurse-submodules <repo-url>
-cd borgctl
+cd dedupctl
 make install
 ```
 
@@ -55,9 +55,9 @@ make PREFIX=/usr/local install
 
 | Component | Default Location |
 |-----------|------------------|
-| Script (`borgctl`) | `~/.local/bin/` |
-| Libraries (`lib/*.sh`) | `~/.local/lib/borgctl/` |
-| Command modules (`libexec/`) | `~/.local/libexec/borgctl/` |
+| Script (`dedupctl`) | `~/.local/bin/` |
+| Libraries (`lib/*.sh`) | `~/.local/lib/dedupctl/` |
+| Command modules (`libexec/`) | `~/.local/libexec/dedupctl/` |
 | Bash completions | `~/.local/share/bash-completion/completions/` |
 | Fish completions | `~/.config/fish/completions/` |
 
@@ -71,33 +71,33 @@ make uninstall
 
 ```bash
 # Initialize a backup repository
-borgctl init /path/to/your/project
+dedupctl init /path/to/your/project
 
 # Create a backup
-borgctl backup [--dry-run] [--force-full]
+dedupctl backup [--dry-run] [--force-full]
 
 # Prune old archives
-borgctl prune                 # Interactive mode
-borgctl prune --last 3        # Remove newest 3
-borgctl prune --first 3       # Remove oldest 3
-borgctl prune --older 30      # Remove older than 30 days
-borgctl prune --newer 7       # Remove newer than 7 days
-borgctl prune --all           # Remove all
+dedupctl prune                 # Interactive mode
+dedupctl prune --last 3        # Remove newest 3
+dedupctl prune --first 3       # Remove oldest 3
+dedupctl prune --older 30      # Remove older than 30 days
+dedupctl prune --newer 7       # Remove newer than 7 days
+dedupctl prune --all           # Remove all
 
 # Mount an archive
-borgctl mount [<mount_point>] [<archive>]
+dedupctl mount [<mount_point>] [<archive>]
 
 # Extract an archive
-borgctl extract [<destination>] [<archive>]
+dedupctl extract [<destination>] [<archive>]
 
 # Compare archives
-borgctl diff                  # Press Enter for current state vs archive
+dedupctl diff                  # Press Enter for current state vs archive
 
 # Other commands
-borgctl check                 # Verify repository integrity
-borgctl size                  # Show archive size info
-borgctl log                   # View backup logs
-borgctl list                  # List all archives
+dedupctl check                 # Verify repository integrity
+dedupctl size                  # Show archive size info
+dedupctl log                   # View backup logs
+dedupctl list                  # List all archives
 ```
 
 ## Configuration

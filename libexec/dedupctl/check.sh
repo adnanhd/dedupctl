@@ -1,4 +1,4 @@
-# borgctl check command
+# dedupctl check command
 # Perform an integrity check of the repository
 
 run() {

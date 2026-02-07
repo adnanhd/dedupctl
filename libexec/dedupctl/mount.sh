@@ -1,4 +1,4 @@
-# borgctl mount command
+# dedupctl mount command
 # Mount a backup archive to a specified mount point
 
 run() {

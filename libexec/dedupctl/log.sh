@@ -1,4 +1,4 @@
-# borgctl log command
+# dedupctl log command
 # Display a backup log file
 
 run() {

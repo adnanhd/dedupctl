@@ -1,7 +1,7 @@
 #!/bin/bash
-# Bash completion for borgctl (Borg backup) script
+# Bash completion for dedupctl (Borg backup) script
 
-_borgctl() {
+_dedupctl() {
     local cur prev subcommands opts
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
@@ -33,4 +33,4 @@ _borgctl() {
     return 0
 }
 
-complete -F _borgctl borgctl
+complete -F _dedupctl dedupctl

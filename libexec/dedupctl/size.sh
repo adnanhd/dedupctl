@@ -1,4 +1,4 @@
-# borgctl size command
+# dedupctl size command
 # Display size and info for an archive
 
 run() {

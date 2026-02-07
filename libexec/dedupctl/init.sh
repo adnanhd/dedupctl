@@ -1,4 +1,4 @@
-# borgctl init command
+# dedupctl init command
 # Initialize a Borg backup repository
 
 run() {

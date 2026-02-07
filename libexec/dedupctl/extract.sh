@@ -1,4 +1,4 @@
-# borgctl extract command
+# dedupctl extract command
 # Extract a backup archive to a destination directory
 
 run() {

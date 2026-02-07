@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# borgctl – A Borg backup management script with encryption, compression, and additional commands.
+# dedupctl – A Borg backup management script with encryption, compression, and additional commands.
 #
 # Commands: init, backup, prune, mount, extract, check, log, list, diff, size
-# Run 'borgctl --help' for more information.
+# Run 'dedupctl --help' for more information.
 #
 
 set -o errexit
@@ -17,12 +17,12 @@ SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 # Support both development (in-tree) and installed locations
 if [ -d "$SCRIPT_DIR/lib" ]; then
     LIB_DIR="$SCRIPT_DIR/lib"
-    LIBEXEC_DIR="$SCRIPT_DIR/libexec/borgctl"
+    LIBEXEC_DIR="$SCRIPT_DIR/libexec/dedupctl"
 else
-    # Installed location: assume PREFIX/bin/borgctl -> PREFIX/lib, PREFIX/libexec
+    # Installed location: assume PREFIX/bin/dedupctl -> PREFIX/lib, PREFIX/libexec
     PREFIX_DIR="$(dirname "$SCRIPT_DIR")"
-    LIB_DIR="$PREFIX_DIR/lib/borgctl"
-    LIBEXEC_DIR="$PREFIX_DIR/libexec/borgctl"
+    LIB_DIR="$PREFIX_DIR/lib/dedupctl"
+    LIBEXEC_DIR="$PREFIX_DIR/libexec/dedupctl"
 fi
 
 # Source common utilities
@@ -35,9 +35,9 @@ fi
 
 usage() {
     cat <<'EOF'
-usage: borgctl [--dry-run] [--force-full] <command> ...
+usage: dedupctl [--dry-run] [--force-full] <command> ...
 
-borgctl - Deduplicated Backups with Borg
+dedupctl - Deduplicated Backups with Borg
 
 Commands:
   init [<path>]

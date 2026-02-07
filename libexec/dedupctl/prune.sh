@@ -1,4 +1,4 @@
-# borgctl prune command
+# dedupctl prune command
 # Purge backup archives from the repository
 
 # Source the shared prune library
