@@ -1,4 +1,4 @@
-# borg-up init command
+# borgctl init command
 # Initialize a Borg backup repository
 
 run() {

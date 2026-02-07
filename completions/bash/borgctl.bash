@@ -1,7 +1,7 @@
 #!/bin/bash
-# Bash completion for borg-up (Borg backup) script
+# Bash completion for borgctl (Borg backup) script
 
-_borg_up() {
+_borgctl() {
     local cur prev subcommands opts
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
@@ -33,4 +33,4 @@ _borg_up() {
     return 0
 }
 
-complete -F _borg_up borg-up
+complete -F _borgctl borgctl

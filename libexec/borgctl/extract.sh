@@ -1,4 +1,4 @@
-# borg-up extract command
+# borgctl extract command
 # Extract a backup archive to a destination directory
 
 run() {

@@ -1,4 +1,4 @@
-# borg-up prune command
+# borgctl prune command
 # Purge backup archives from the repository
 
 # Source the shared prune library

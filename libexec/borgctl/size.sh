@@ -1,4 +1,4 @@
-# borg-up size command
+# borgctl size command
 # Display size and info for an archive
 
 run() {

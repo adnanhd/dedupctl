@@ -1,4 +1,4 @@
-# borg-up list command
+# borgctl list command
 # List all available backup archives in the repository
 
 run() {

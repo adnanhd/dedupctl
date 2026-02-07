@@ -1,4 +1,4 @@
-# borg-up backup command
+# borgctl backup command
 # Create a new backup archive
 
 perform_backup() {

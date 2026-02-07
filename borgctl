@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# borg-up – A Borg backup management script with encryption, compression, and additional commands.
+# borgctl – A Borg backup management script with encryption, compression, and additional commands.
 #
 # Commands: init, backup, prune, mount, extract, check, log, list, diff, size
-# Run 'borg-up --help' for more information.
+# Run 'borgctl --help' for more information.
 #
 
 set -o errexit
@@ -17,12 +17,12 @@ SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 # Support both development (in-tree) and installed locations
 if [ -d "$SCRIPT_DIR/lib" ]; then
     LIB_DIR="$SCRIPT_DIR/lib"
-    LIBEXEC_DIR="$SCRIPT_DIR/libexec/borg-up"
+    LIBEXEC_DIR="$SCRIPT_DIR/libexec/borgctl"
 else
-    # Installed location: assume PREFIX/bin/borg-up -> PREFIX/lib, PREFIX/libexec
+    # Installed location: assume PREFIX/bin/borgctl -> PREFIX/lib, PREFIX/libexec
     PREFIX_DIR="$(dirname "$SCRIPT_DIR")"
-    LIB_DIR="$PREFIX_DIR/lib/borg-rsnap"
-    LIBEXEC_DIR="$PREFIX_DIR/libexec/borg-rsnap/borg-up"
+    LIB_DIR="$PREFIX_DIR/lib/borgctl"
+    LIBEXEC_DIR="$PREFIX_DIR/libexec/borgctl"
 fi
 
 # Source common utilities
@@ -35,9 +35,9 @@ fi
 
 usage() {
     cat <<'EOF'
-usage: borg-up [--dry-run] [--force-full] <command> ...
+usage: borgctl [--dry-run] [--force-full] <command> ...
 
-borg-up - Deduplicated Backups with Borg
+borgctl - Deduplicated Backups with Borg
 
 Commands:
   init [<path>]

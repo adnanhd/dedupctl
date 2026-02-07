@@ -1,4 +1,4 @@
-# borg-up mount command
+# borgctl mount command
 # Mount a backup archive to a specified mount point
 
 run() {

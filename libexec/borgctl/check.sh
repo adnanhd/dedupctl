@@ -1,4 +1,4 @@
-# borg-up check command
+# borgctl check command
 # Perform an integrity check of the repository
 
 run() {

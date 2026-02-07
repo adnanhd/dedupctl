@@ -1,4 +1,4 @@
-# borg-up log command
+# borgctl log command
 # Display a backup log file
 
 run() {
