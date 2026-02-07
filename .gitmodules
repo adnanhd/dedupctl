@@ -1,0 +1,3 @@
+[submodule "lib"]
+	path = lib
+	url = /home/adhd/src/personal/backuplib
