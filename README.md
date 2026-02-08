@@ -40,7 +40,7 @@ dedupctl/
 ## Installation
 
 ```bash
-git clone --recurse-submodules <repo-url>
+git clone --recurse-submodules git@github.com:adnanhd/dedupctl.git
 cd dedupctl
 make install
 ```
