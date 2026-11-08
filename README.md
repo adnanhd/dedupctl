@@ -60,6 +60,20 @@ make PREFIX=/usr/local install
 | Command modules (`libexec/`) | `~/.local/libexec/dedupctl/` |
 | Bash completions | `~/.local/share/bash-completion/completions/` |
 | Fish completions | `~/.config/fish/completions/` |
+| Zsh completions | `~/.local/share/zsh/site-functions/` |
+| Manual pages | `~/.local/share/man/man1/`, `~/.local/share/man/man5/` |
+
+### Manual Pages and Zsh Completion
+
+`man dedupctl` documents every command and option, and `man 5 dedupctl.borgbackup` the configuration file. man-db finds `~/.local/share/man` from `~/.local/bin` on `PATH`. Zsh has `/usr/local/share/zsh/site-functions` on its default `fpath`; for `~/.local`, add `fpath=(~/.local/share/zsh/site-functions $fpath)` before `compinit`.
+
+The section-1 pages and the zsh completion are generated from the source by `scripts/gen-docs.py`, which reads the dispatcher, `libexec/` and `lib/` and never runs the tools; it also prints where the hand-written bash and fish completions disagree with the code. Rerun it after changing a command or an option:
+
+```bash
+python3 scripts/gen-docs.py
+```
+
+The prose of each page is in `man/<command>.1.in`; the section-5 pages are written by hand.
 
 ### Uninstall
 
@@ -74,7 +88,7 @@ make uninstall
 dedupctl init /path/to/your/project
 
 # Create a backup
-dedupctl backup [--dry-run] [--force-full]
+dedupctl backup [--dry-run]
 
 # Prune old archives
 dedupctl prune                 # Interactive mode

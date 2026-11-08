@@ -1,0 +1,66 @@
+.\" Written by hand from lib/common.sh (require_config, build_exclude_params)
+.\" and libexec/dedupctl/*.sh; keep it in step with them.
+.TH DEDUPCTL.BORGBACKUP 5 2026-11-08 "dedupctl" "File Formats"
+.SH NAME
+dedupctl.borgbackup, .borgbackup \- backup source configuration for dedupctl
+.SH SYNOPSIS
+.I <directory>/.borgbackup
+.SH DESCRIPTION
+.B dedupctl init
+writes
+.I .borgbackup
+into the directory it is to back up.
+Every other command of
+.BR dedupctl (1)
+finds the nearest one in the current directory or its parents, changes
+into the directory that holds it, and reads it with the shell's
+.B source
+builtin: the file is a bash script, run with the user's rights, and may
+set any variable.
+.PP
+These variables are read:
+.TP
+.B BORG_REPO
+The Borg repository.
+Required by every command but
+.BR init .
+.B init
+sets it to
+.IR $BORG_BACKUP_ROOT/<name> .
+.TP
+.B SOURCE_DIR
+What
+.B backup
+archives, relative to the directory of the file.
+Required by
+.BR backup ;
+.B init
+sets it to
+.BR ./ .
+.TP
+.B EXCLUDES
+A bash array of patterns
+.B backup
+passes to
+.B borg create
+as
+.BI \-\-exclude " pattern"
+each.
+When it is not set the patterns are
+.BR .cache ,
+.B tmp
+and
+.BR __pycache__ .
+.PP
+A file that is missing, or that leaves a required variable empty, ends
+the command with status 3.
+.SH EXAMPLES
+.EX
+# Borg backup configuration for /home/user/papers
+SOURCE_DIR="./"
+BORG_REPO="/home/user/.borg_backups/!home!user!papers"
+EXCLUDES=(".cache" "node_modules" "*.log")
+.EE
+.SH SEE ALSO
+.BR dedupctl (1),
+.BR borg (1)

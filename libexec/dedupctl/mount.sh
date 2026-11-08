@@ -2,6 +2,7 @@
 # Mount a backup archive to a specified mount point
 
 run() {
+    reject_options mount "$@"
     local repo_root mount_point archive
 
     repo_root=$(find_repo_root "$(pwd)" ".borgbackup") || {

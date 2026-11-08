@@ -18,8 +18,8 @@ _dedupctl() {
 
     # Provide extra options for certain subcommands:
     case "${COMP_WORDS[1]}" in
-        init|backup)
-            opts="--dry-run --force-full --create"
+        backup)
+            opts="--dry-run"
             ;;
         prune)
             opts="--last --first --older --newer --all"

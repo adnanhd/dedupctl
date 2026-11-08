@@ -2,6 +2,7 @@
 # List all available backup archives in the repository
 
 run() {
+    reject_options list "$@"
     local repo_root
 
     repo_root=$(find_repo_root "$(pwd)" ".borgbackup") || {

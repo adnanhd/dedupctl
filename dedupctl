@@ -35,7 +35,7 @@ fi
 
 usage() {
     cat <<'EOF'
-usage: dedupctl [--dry-run] [--force-full] <command> ...
+usage: dedupctl <command> [<options>]
 
 dedupctl - Deduplicated Backups with Borg
 
@@ -43,10 +43,14 @@ Commands:
   init [<path>]
       Initialize a Borg backup repository for <path> (or the current directory if not provided).
       This creates a .borgbackup configuration file and initializes the repository with encryption (repokey).
+      It takes no options.
 
-  backup [--dry-run] [--force-full]
+  backup [--dry-run]
       Create a new backup archive for the repository defined in the current directory (or its nearest parent).
       Archives are created using compression (lz4) and stored in the repository.
+      A parent directory's repository, if there is one, is then backed up with the same options.
+      Options:
+        --dry-run  : Simulate the backup; nothing is written, here or in a parent repository.
 
   prune [options]
       Purge backup archives.
@@ -81,16 +85,16 @@ Commands:
       Display the size and info of an archive (using 'borg info').
 
 Common options:
-  --dry-run      Simulate actions without making any changes.
-  --force-full   Force a full backup (skip incremental linking).
   -h, --help     Show this help message and exit.
+
+Every other option belongs to one command and goes after it.
 EOF
-    exit 1
+    exit "${1:-0}"
 }
 
 # Main command dispatcher
 if [ $# -lt 1 ]; then
-    usage
+    usage 1 >&2
 fi
 
 COMMAND="$1"
@@ -106,10 +110,10 @@ case "$COMMAND" in
         run "$@"
         ;;
     -h|--help)
-        usage
+        usage 0
         ;;
     *)
-        echo "Unknown command: $COMMAND"
-        usage
+        echo "Unknown command: $COMMAND" >&2
+        usage 1 >&2
         ;;
 esac

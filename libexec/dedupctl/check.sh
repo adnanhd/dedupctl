@@ -2,6 +2,7 @@
 # Perform an integrity check of the repository
 
 run() {
+    reject_options check "$@"
     local repo_root
 
     repo_root=$(find_repo_root "$(pwd)" ".borgbackup") || {

@@ -12,10 +12,8 @@ complete -c dedupctl -f -a "list" -d "List archives: list all available backup a
 complete -c dedupctl -f -a "diff" -d "Diff archives: compare two archives; leave first prompt empty for current state."
 complete -c dedupctl -f -a "size" -d "Size: display size and info for a selected archive."
 
-# Options for the "init" and "backup" subcommands:
-complete -c dedupctl -n '__fish_seen_subcommand_from init backup' -a "--dry-run" -d "Simulate actions (dry run)"
-complete -c dedupctl -n '__fish_seen_subcommand_from init backup' -a "--force-full" -d "Force a full backup (skip incremental linking)"
-complete -c dedupctl -n '__fish_seen_subcommand_from init backup' -a "--create" -d "Alias for --force-full"
+# Options for the "backup" subcommand:
+complete -c dedupctl -n '__fish_seen_subcommand_from backup' -a "--dry-run" -d "Simulate the backup (dry run)"
 
 # Options for the "prune" subcommand:
 complete -c dedupctl -n '__fish_seen_subcommand_from prune' -a "--last" -d "Remove the newest X archives"

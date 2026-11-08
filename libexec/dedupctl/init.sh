@@ -2,9 +2,27 @@
 # Initialize a Borg backup repository
 
 run() {
+    local path=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -h|--help)
+                usage 0
+                ;;
+            -*)
+                die "init takes no options: '$1'" $EXIT_INVALID_ARGS
+                ;;
+            *)
+                [ -z "$path" ] || die "init takes at most one path." $EXIT_INVALID_ARGS
+                path="$1"
+                ;;
+        esac
+        shift
+    done
+
     local src
-    if [ $# -gt 0 ] && [ -d "$1" ]; then
-        src=$(realpath "$1")
+    if [ -n "$path" ]; then
+        [ -d "$path" ] || die "'$path' is not a directory." $EXIT_INVALID_ARGS
+        src=$(realpath "$path")
     else
         src=$(pwd)
     fi

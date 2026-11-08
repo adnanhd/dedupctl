@@ -2,6 +2,7 @@
 # Display size and info for an archive
 
 run() {
+    reject_options size "$@"
     local repo_root archive
 
     repo_root=$(find_repo_root "$(pwd)" ".borgbackup") || {

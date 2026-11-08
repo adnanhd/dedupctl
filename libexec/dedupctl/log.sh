@@ -2,6 +2,7 @@
 # Display a backup log file
 
 run() {
+    reject_options log "$@"
     local repo_root
 
     repo_root=$(find_repo_root "$(pwd)" ".borgbackup") || {

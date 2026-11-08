@@ -1,31 +1,35 @@
 # dedupctl backup command
 # Create a new backup archive
 
+# parse_backup_options: set DRY_RUN from the options and refuse anything
+# else, so that a mistyped flag never turns into a real backup.
+parse_backup_options() {
+    DRY_RUN=false
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --dry-run)
+                DRY_RUN=true
+                ;;
+            -h|--help)
+                usage 0
+                ;;
+            *)
+                die "backup: unknown option '$1'" $EXIT_INVALID_ARGS
+                ;;
+        esac
+        shift
+    done
+}
+
 perform_backup() {
     local source_dir="$1"
     shift
     local repo_dir="$1"
     shift
 
-    local DRY_RUN=false
-    local FORCE_FULL=false
-
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --dry-run)
-                DRY_RUN=true
-                shift
-                ;;
-            --force-full|--create)
-                FORCE_FULL=true
-                shift
-                ;;
-            *)
-                echo "Unknown option: $1"
-                shift
-                ;;
-        esac
-    done
+    # "$@" is the command line's options, already checked by
+    # parse_backup_options; they are passed on unchanged to a parent
+    # repository's backup below, so a --dry-run stays a dry run there.
 
     local timestamp
     timestamp=$(date '+%Y-%m-%d_%H:%M:%S')
@@ -41,8 +45,12 @@ perform_backup() {
     build_exclude_params "borg"
 
     echo "Starting Borg backup of '${source_dir}' as archive '${archive_name}'..."
-    mkdir -p "${repo_dir}/logs"
-    local log_file="${repo_dir}/logs/${timestamp}.log"
+    # A dry run writes no log: it must leave the repository as it was.
+    local log_file=/dev/null
+    if [ "$DRY_RUN" != true ]; then
+        mkdir -p "${repo_dir}/logs"
+        log_file="${repo_dir}/logs/${timestamp}.log"
+    fi
 
     ( cd "${source_dir}" &&
       borg create $dry_flag --verbose --stats --compression lz4 \
@@ -52,7 +60,10 @@ perform_backup() {
     echo "Backup completed and archived as '${archive_name}'."
 
     local parent_repo
-    parent_repo=$(find_parent_repo "${source_dir}" ".borgbackup") || true
+    # Search from the repository root (the current directory), not from
+    # SOURCE_DIR: a SOURCE_DIR below the root would find this repository's
+    # own .borgbackup and back it up again.
+    parent_repo=$(find_parent_repo "$(pwd)" ".borgbackup") || true
     if [ -n "${parent_repo:-}" ]; then
         echo "Found parent Borg backup repository at '${parent_repo}'."
         echo "Initiating backup for the parent repository..."
@@ -61,6 +72,8 @@ perform_backup() {
 }
 
 run() {
+    parse_backup_options "$@"
+
     local repo_root
     repo_root=$(find_repo_root "$(pwd)" ".borgbackup") || {
         echo "No Borg backup repository found in the current directory or its parents (missing .borgbackup)."

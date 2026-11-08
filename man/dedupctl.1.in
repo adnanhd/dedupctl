@@ -1,0 +1,161 @@
+.\" Template for dedupctl.1: scripts/gen-docs.py fills in the marked parts
+.\" from the dispatcher, libexec/dedupctl/*.sh and lib/*.sh, reading them only.
+.TH DEDUPCTL 1 2026-11-08 "dedupctl" "User Commands"
+.SH NAME
+dedupctl \- encrypted, compressed BorgBackup archives of a directory tree
+.SH SYNOPSIS
+.\" @generated synopsis
+.SH DESCRIPTION
+.B dedupctl
+keeps one Borg repository per backed-up directory.
+.B init
+marks a directory as a backup source by writing a
+.I .borgbackup
+file into it, see
+.BR dedupctl.borgbackup (5),
+and creates the repository under
+.BR $BORG_BACKUP_ROOT ,
+named after the directory's absolute path with every
+.B /
+turned into
+.B !
+(and every
+.B !
+doubled), encrypted with
+.BR repokey .
+.PP
+Every other command looks for the nearest
+.I .borgbackup
+in the current directory or its parents, changes into that directory,
+and reads the file.
+A command that needs an archive and is given none lists the archives and
+asks for one by number.
+.PP
+Arguments are read only after the command; the dispatcher itself knows
+only
+.BR \-h " and " \-\-help .
+Every command refuses an option it does not know with status 2 before it
+does anything, and every command takes
+.BR \-h " and " \-\-help .
+.SH OPTIONS
+.\" @generated options
+.SH COMMANDS
+.\" @generated commands
+.\" @prose backup
+.PP
+The archive is named after the time it starts,
+.IR YYYY\-MM\-DD_HH:MM:SS ,
+and is written with
+.B borg create \-\-compression lz4
+from
+.BR SOURCE_DIR ,
+leaving out the
+.B EXCLUDES
+of
+.IR .borgbackup .
+Its output also goes to
+.IR $BORG_REPO/logs/<time>.log .
+.B \-\-dry\-run
+is passed to
+.B borg create
+and writes no log, so the repository is left as it was.
+.PP
+When a directory above the repository root has a
+.I .borgbackup
+of its own, the backup then runs there too, with the same options: a
+.B \-\-dry\-run
+stays a dry run in the parent.
+.\" @end
+.\" @prose prune
+.PP
+Each archive is removed with
+.BR "borg delete" .
+In interactive mode the archives are listed and the numbers to remove
+are read, or
+.BR all ;
+both modes ask for confirmation first.
+.\" @end
+.\" @prose diff
+.PP
+Two archives are compared with
+.BR "borg diff" .
+The live state is compared by extracting the archive into a temporary
+directory, removed afterwards, and running
+.B diff \-r
+against it.
+.\" @end
+.\" @prose log
+.PP
+The log is shown with
+.BR less (1).
+.\" @end
+.\" @prose mount
+.PP
+The mount point is created when missing.
+Unmount with
+.B borg umount
+.I mount_point
+or
+.BR umount (8).
+.\" @end
+.SH EXIT STATUS
+.TP
+.B 0
+Success, also
+.BR \-h " / " \-\-help
+after any command or none, and
+.B init
+on a directory that already has a
+.IR .borgbackup .
+.TP
+.B 1
+No command or an unknown command (the usage text goes to standard
+error), no
+.I .borgbackup
+was found, a selection was invalid, or another error.
+A failing
+.B borg
+command ends the run with its own status.
+.TP
+.B 2
+An option the command does not know,
+.B init
+given an option, more than one path or a path that is not a directory,
+or
+.B prune
+given more than one of its options, or one without its number.
+.TP
+.B 3
+.I .borgbackup
+is missing or does not set a variable the command needs.
+.SH ENVIRONMENT
+.TP
+.B BORG_BACKUP_ROOT
+Where
+.B init
+creates repositories; default
+.IR ~/.borg_backups .
+.TP
+.BR BORG_PASSPHRASE ", " BORG_PASSCOMMAND ", ..."
+Read by
+.B borg
+itself, which every command runs; see
+.BR borg (1).
+.SH FILES
+.TP
+.I .borgbackup
+The backup source's configuration, in the directory it backs up; see
+.BR dedupctl.borgbackup (5).
+.TP
+.I $BORG_BACKUP_ROOT/<name>/
+The repository
+.B init
+creates.
+.TP
+.I $BORG_REPO/logs/*.log
+One log per backup, read by
+.BR log .
+.SH SEE ALSO
+.BR dedupctl.borgbackup (5),
+.BR borg (1),
+.BR hlinkctl (1)

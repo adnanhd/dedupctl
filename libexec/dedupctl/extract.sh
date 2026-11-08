@@ -2,6 +2,7 @@
 # Extract a backup archive to a destination directory
 
 run() {
+    reject_options extract "$@"
     local repo_root destination archive
 
     repo_root=$(find_repo_root "$(pwd)" ".borgbackup") || {

@@ -2,6 +2,7 @@
 # Compare two archives
 
 run() {
+    reject_options diff "$@"
     local repo_root diff_archive1 diff_archive2 temp_dir
 
     repo_root=$(find_repo_root "$(pwd)" ".borgbackup") || {

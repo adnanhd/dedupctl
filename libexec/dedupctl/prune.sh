@@ -26,6 +26,7 @@ format_item() {
 }
 
 run() {
+    parse_prune_options "$@"   # refuse a bad option before anything else
     local repo_root
     repo_root=$(find_repo_root "$(pwd)" ".borgbackup") || {
         echo "No Borg backup repository found (missing .borgbackup)."
